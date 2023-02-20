@@ -64,12 +64,9 @@ classdef b3d
                 float_channels = fread(fid, 1, "uint32", 0, "l");
                 byte_channels = fread(fid, 1, "uint32", 0, "l");
                 loc_format = fread(fid, 1, "uint32", 0, "l");
-                if float_channels ~= 2
-                    error("Only supported format is 2 float " ...
-                        + "and 0 byte channels");
-                elseif byte_channels ~= 0
-                    error("Only supported format is 2 float " ...
-                        + "and 0 byte channels");
+                if float_channels < 2
+                    error("Only B3D files with at least 2 float "...
+                        + "channels are supported");
                 elseif loc_format ~= 1
                     error("Only location format 1 is supported");
                 end
@@ -87,11 +84,13 @@ classdef b3d
                         + " are supported");
                 end
                 obj.time = fread(fid, nt, "uint32", 0, "l");
-                edata = fread(fid, 2*n*nt, "float32", 0, "l");
-                edata = reshape(edata, 2, n, nt);
-                edata = permute(edata, [2, 3, 1]);
-                obj.ex = edata(:,:,1)';
-                obj.ey = edata(:,:,2)';
+                efstart = ftell(fid);
+                skip = (float_channels-1)*4+byte_channels;
+                raw_ex = fread(fid, n*nt, "float32", skip, "l");
+                fseek(fid, efstart+4, -1);
+                raw_ey = fread(fid, n*nt, "float32", skip, "l");
+                obj.ex = reshape(raw_ex, n, nt)';
+                obj.ey = reshape(raw_ey, n, nt)';
             else
                 error("Only version 2 of B3D format is supported");
             end

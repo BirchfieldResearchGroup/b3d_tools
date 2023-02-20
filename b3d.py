@@ -123,8 +123,8 @@ class B3D:
             float_channels = int.from_bytes(b[x2:x2+4], "little")
             byte_channels = int.from_bytes(b[x2+4:x2+8], "little")
             loc_format = int.from_bytes(b[x2+8:x2+12], "little")
-            if float_channels != 2 or byte_channels != 0:
-                raise Exception("Only B3D files with 2 float channels and 0 byte channels"
+            if float_channels < 2:
+                raise Exception("Only B3D files with at least 2 float channels"
                     + " are supported")
             if loc_format != 1:
                 raise Exception("Only location format 1 is supported")
@@ -144,8 +144,17 @@ class B3D:
                 raise Exception("Only B3D files with variable time points are supported")
             x4 = x3 + 20 + 4*nt
             self.time = np.frombuffer(b[x3+20:x4], dtype=np.uint32).copy()
-            x5 = x4 + 8*2*n*nt
-            edata = np.frombuffer(b[x4:x5], dtype=np.single).reshape([nt, n, 2]).copy()
+            npts = n*nt
+            if float_channels == 2 and byte_channels == 0:
+                x5 = x4 + 4*2*n*nt
+                raw_exy = np.frombuffer(b[x4:x5], dtype=np.single)
+            else:
+                bxy = bytearray(npts*8)
+                for i in range(npts):
+                    x5 = x4 + i*(float_channels*4+byte_channels)
+                    bxy[i*8:(i+1)*8] = b[x5:x5+8]
+                raw_exy = np.frombuffer(bxy, dtype=np.single)
+            edata = raw_exy.reshape([nt, n, 2]).copy()
             self.ex = edata[:,:,0]
             self.ey = edata[:,:,1]
             
